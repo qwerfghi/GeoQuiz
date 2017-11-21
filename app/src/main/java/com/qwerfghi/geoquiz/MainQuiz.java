@@ -1,5 +1,6 @@
 package com.qwerfghi.geoquiz;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -12,9 +13,10 @@ public class MainQuiz extends AppCompatActivity {
     private Button mTrueButton;
     private Button mFalseButton;
     private Button mNextButton;
+    private Button mCheatButton;
     private Button mPrevButton;
     private TextView mQuestionTextView;
-    private Question[] mQuestionBank = new Question[] {
+    private Question[] mQuestionBank = new Question[]{
             new Question(R.string.question_australia, true),
             new Question(R.string.question_oceans, true),
             new Question(R.string.question_mideast, false),
@@ -22,7 +24,9 @@ public class MainQuiz extends AppCompatActivity {
             new Question(R.string.question_americas, true),
             new Question(R.string.question_asia, true),
     };
+    private boolean[] mAnswers = new boolean[mQuestionBank.length];
     private int mCurrentIndex = 0;
+    private int mQuestionCount = 0;
     private static final String KEY_INDEX = "index";
     private static final String TAG = "QuizActivity";
 
@@ -36,30 +40,36 @@ public class MainQuiz extends AppCompatActivity {
         }
 
         mQuestionTextView = findViewById(R.id.question_text_view);
-        mQuestionTextView.setOnClickListener(view -> {
-            mCurrentIndex = mCurrentIndex < mQuestionBank.length - 1 ? mCurrentIndex + 1 : mQuestionBank.length - 1;
-
-            updateQuestion();
-        });
+        mQuestionTextView.setOnClickListener(view -> nextQuestion());
         updateQuestion();
 
         mTrueButton = findViewById(R.id.true_button);
-        mTrueButton.setOnClickListener(view -> checkAnswer(true));
+        mTrueButton.setOnClickListener(view -> setAnswer(true));
 
         mFalseButton = findViewById(R.id.false_button);
-        mFalseButton.setOnClickListener(view -> checkAnswer(false));
+        mFalseButton.setOnClickListener(view -> setAnswer(false));
 
         mPrevButton = findViewById(R.id.prev_button);
         mPrevButton.setOnClickListener(view -> {
             mCurrentIndex = mCurrentIndex > 0 ? mCurrentIndex - 1 : 0;
+            setButtons(!mQuestionBank[mCurrentIndex].isAnswered());
             updateQuestion();
         });
 
-        mNextButton = findViewById(R.id.next_button);
-        mNextButton.setOnClickListener(view -> {
-            mCurrentIndex = (mCurrentIndex + 1) % mQuestionBank.length;
-            updateQuestion();
+        mCheatButton = findViewById(R.id.cheat_button);
+        mCheatButton.setOnClickListener(view -> {
+            Intent intent = new Intent(MainQuiz.this, CheatActivity.class);
+            startActivity(intent);
         });
+
+        mNextButton = findViewById(R.id.next_button);
+        mNextButton.setOnClickListener(view -> nextQuestion());
+    }
+
+    private void nextQuestion() {
+        mCurrentIndex = mCurrentIndex < mQuestionBank.length - 1 ? mCurrentIndex + 1 : mQuestionBank.length - 1;
+        setButtons(!mQuestionBank[mCurrentIndex].isAnswered());
+        updateQuestion();
     }
 
     @Override
@@ -74,9 +84,31 @@ public class MainQuiz extends AppCompatActivity {
         mQuestionTextView.setText(question);
     }
 
-    private void checkAnswer(boolean userPressedTrue) {
-        boolean answerIsTrue = mQuestionBank[mCurrentIndex].isAnswerTrue();
-        int messageResId = (userPressedTrue == answerIsTrue) ? R.string.correct_toast : R.string.incorrect_toast;
+    private void setAnswer(boolean userPressedTrue) {
+        mQuestionBank[mCurrentIndex].setAnswered(true);
+        setButtons(false);
+        boolean answerIsRight = userPressedTrue == mQuestionBank[mCurrentIndex].isAnswerTrue();
+        int messageResId = answerIsRight ? R.string.correct_toast : R.string.incorrect_toast;
         Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show();
+        mAnswers[mCurrentIndex] = answerIsRight;
+        mQuestionCount++;
+        if (mQuestionCount == mQuestionBank.length) {
+            showStatistic();
+            mNextButton.setEnabled(false);
+            mPrevButton.setEnabled(false);
+        }
+    }
+
+    private void showStatistic() {
+        int rightAnswers = 0;
+        for (boolean mAnswer : mAnswers) {
+            if (mAnswer) rightAnswers++;
+        }
+        Toast.makeText(this, "You have " + rightAnswers + " right answers", Toast.LENGTH_SHORT).show();
+    }
+
+    private void setButtons(boolean enable) {
+        mTrueButton.setEnabled(enable);
+        mFalseButton.setEnabled(enable);
     }
 }
